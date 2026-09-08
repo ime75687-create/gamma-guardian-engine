@@ -14,7 +14,105 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      ime_decisions: {
+        Row: {
+          action: string
+          alert_sent: boolean
+          analysis: Json
+          created_at: string
+          entry: number | null
+          id: string
+          raw_data: Json | null
+          reason: string | null
+          risk: string | null
+          stop: number | null
+          symbol: string
+          target: number | null
+          user_id: string
+        }
+        Insert: {
+          action: string
+          alert_sent?: boolean
+          analysis: Json
+          created_at?: string
+          entry?: number | null
+          id?: string
+          raw_data?: Json | null
+          reason?: string | null
+          risk?: string | null
+          stop?: number | null
+          symbol: string
+          target?: number | null
+          user_id: string
+        }
+        Update: {
+          action?: string
+          alert_sent?: boolean
+          analysis?: Json
+          created_at?: string
+          entry?: number | null
+          id?: string
+          raw_data?: Json | null
+          reason?: string | null
+          risk?: string | null
+          stop?: number | null
+          symbol?: string
+          target?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      ime_settings: {
+        Row: {
+          alert_actions: string[]
+          alerts_enabled: boolean
+          created_at: string
+          id: string
+          telegram_chat_id: string | null
+          user_id: string
+        }
+        Insert: {
+          alert_actions?: string[]
+          alerts_enabled?: boolean
+          created_at?: string
+          id?: string
+          telegram_chat_id?: string | null
+          user_id: string
+        }
+        Update: {
+          alert_actions?: string[]
+          alerts_enabled?: boolean
+          created_at?: string
+          id?: string
+          telegram_chat_id?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      ime_symbols: {
+        Row: {
+          active: boolean
+          created_at: string
+          id: string
+          symbol: string
+          user_id: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          symbol: string
+          user_id: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          symbol?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
