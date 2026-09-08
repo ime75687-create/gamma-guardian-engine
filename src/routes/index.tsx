@@ -44,7 +44,7 @@ const ACTION_STYLES: Record<string, string> = {
   AVOID: "bg-muted text-muted-foreground border-border",
 };
 
-function Badge({ label, tone }: { label: string; tone?: string }) {
+function Badge({ label, tone }: { label: string; tone?: string | undefined }) {
   return (
     <span className={`rounded border px-1.5 py-0.5 font-mono text-[10px] ${tone ?? "bg-secondary text-secondary-foreground border-border"}`}>
       {label}
