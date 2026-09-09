@@ -81,6 +81,7 @@ export function analyzeStock(stockData: StockData): ImeResult {
     reason = "Unstable price behavior combined with HIGH volatility regime.";
     risk = "HIGH";
   } else if (
+    !gammaMissing &&
     market_regime === "NEGATIVE_GAMMA" &&
     trend === "BULLISH" &&
     momentum_state === "STRONG" &&
@@ -93,6 +94,7 @@ export function analyzeStock(stockData: StockData): ImeResult {
     target = round2(price * 1.02);
     risk = "HIGH";
   } else if (
+    !gammaMissing &&
     market_regime === "POSITIVE_GAMMA" &&
     trend === "BULLISH" &&
     momentum_state !== "WEAK" &&
