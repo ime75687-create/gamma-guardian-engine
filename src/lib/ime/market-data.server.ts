@@ -145,14 +145,33 @@ async function fetchFinnhubData(symbol: string, apiKey: string): Promise<StockDa
     const direction =
       prevClose !== undefined ? (price >= prevClose ? "LONG" : "SHORT") : undefined;
 
+    // Deterministic Gamma/Delta simulation from quote + RSI (Finnhub has no
+    // options data). Same inputs always produce the same scores.
+    const round3 = (n: number) => Math.round(n * 1000) / 1000;
+    const dailyVol = high !== undefined && low !== undefined && price > 0
+      ? (high - low) / price
+      : undefined;
+    const rsiForSim = rsiValue ?? 50;
+    const simGamma =
+      dailyVol !== undefined ? round3(dailyVol * 0.8 + (rsiForSim - 50) / 200) : undefined;
+    const simDelta =
+      prevClose !== undefined && prevClose > 0
+        ? round3((price - prevClose) / prevClose)
+        : undefined;
+    // High simulated gamma = expansion/negative-gamma-like regime.
+    const simRegime =
+      simGamma === undefined ? undefined : simGamma > 0.2 ? "NEGATIVE" : "POSITIVE";
+
     return {
       symbol: symbol.toUpperCase(),
       price,
       gamma: {
         flipLevel: prevClose,
-        regime: undefined, // Finnhub has no gamma regime — engine treats as missing
+        regime: simRegime,
+        simulated: true,
+        score: simGamma,
       },
-      delta: { direction: direction as "LONG" | "SHORT" | undefined },
+      delta: { direction: direction as "LONG" | "SHORT" | undefined, changePct: simDelta },
       volatility: {
         intraday: intradayRange,
         regime:

@@ -10,6 +10,8 @@ export function analyzeStock(stockData: StockData): ImeResult {
   const price = typeof stockData.price === "number" ? stockData.price : undefined;
   if (price === undefined) warnings.push("missing price");
   if (!stockData.gamma?.regime) warnings.push("missing gamma regime");
+  else if (stockData.gamma.simulated)
+    warnings.push("gamma/delta simulated from price+RSI (no real options data)");
   if (!stockData.delta?.direction) warnings.push("missing delta direction");
   if (!stockData.momentum) warnings.push("missing momentum data");
   if (!stockData.liquidity) warnings.push("missing liquidity data");
@@ -65,6 +67,9 @@ export function analyzeStock(stockData: StockData): ImeResult {
   // 5) Decision Engine
   const criticalMissing = price === undefined;
   const gammaMissing = !stockData.gamma?.regime;
+  const gammaSimulated = stockData.gamma?.simulated === true;
+  const gammaScore = stockData.gamma?.score;
+  const deltaChange = stockData.delta?.changePct;
   let action: ImeResult["decision"]["action"];
   let reason: string;
   let entry: number | undefined;
@@ -82,6 +87,7 @@ export function analyzeStock(stockData: StockData): ImeResult {
     risk = "HIGH";
   } else if (
     !gammaMissing &&
+    !gammaSimulated &&
     market_regime === "NEGATIVE_GAMMA" &&
     trend === "BULLISH" &&
     momentum_state === "STRONG" &&
@@ -94,14 +100,32 @@ export function analyzeStock(stockData: StockData): ImeResult {
     target = round2(price * 1.02);
     risk = "HIGH";
   } else if (
+    gammaSimulated &&
+    trend === "BULLISH" &&
+    momentum_state !== "WEAK" &&
+    liquidityState !== "OUTFLOW" &&
+    typeof gammaScore === "number" &&
+    gammaScore > 0.35 &&
+    typeof deltaChange === "number" &&
+    deltaChange > 0.02
+  ) {
+    action = "AGGRESSIVE_ENTRY";
+    reason = "High simulated gamma + positive delta + non-weak momentum (simulated from price+RSI — no real options data).";
+    entry = round2(price);
+    stop = round2(price * 0.99);
+    target = round2(price * 1.02);
+    risk = "HIGH";
+  } else if (
     trend === "BULLISH" &&
     momentum_state !== "WEAK" &&
     liquidityState !== "OUTFLOW"
   ) {
     action = "CONSERVATIVE_ENTRY";
-    reason = gammaMissing
-      ? "Bullish delta + non-weak momentum + liquidity not in outflow (gamma regime unavailable from data source — conservative mode)."
-      : "Positive Gamma + bullish delta + non-weak momentum + liquidity not in outflow.";
+    reason = gammaSimulated
+      ? "Moderate simulated gamma + bullish delta + non-weak momentum (simulated from price+RSI — no real options data)."
+      : gammaMissing
+        ? "Bullish delta + non-weak momentum + liquidity not in outflow (gamma regime unavailable from data source — conservative mode)."
+        : "Positive Gamma + bullish delta + non-weak momentum + liquidity not in outflow.";
     entry = round2(price);
     stop = round2(price * 0.995);
     target = round2(price * 1.01);
