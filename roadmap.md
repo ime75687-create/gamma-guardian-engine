@@ -14,3 +14,9 @@ Open items (waiting on user):
 - Optional: provide a MenthorQ (or similar) API key to switch from simulated to live data
 - [x] Finnhub integration: FINNHUB_API_KEY saved; live quote + RSI feed the engine (fallback order: MenthorQ → Finnhub → simulated). Engine now runs on Finnhub alone: CONSERVATIVE_ENTRY allowed without gamma data (reason notes the gap); AGGRESSIVE_ENTRY still requires gamma regime (MenthorQ)
 - [x] Gamma/Delta simulation from Finnhub: deterministic scores from daily range + RSI (gamma = range%*0.8 + (RSI-50)/200; delta = price vs prev close). Finnhub data can now yield AGGRESSIVE_ENTRY (gamma>0.35 & delta>2% & bullish) and CONSERVATIVE_ENTRY; reasons flag "simulated — no real options data". Real MenthorQ gamma still takes priority when available
+- [x] Symbol universe added (src/lib/ime/universe.ts): TECH / INDEX / ENERGY / FINANCE lists
+- [x] Telegram bot: interactive webhook (/api/public/telegram/webhook) with per-user analysis type (QUICK/FULL) and focus, stored in ime_bot_users; commands /start /market /news /help; inline menus in Arabic
+- [x] Market news via Finnhub (general + per-symbol)
+- [x] Broadcast endpoint /api/public/ime/broadcast (x-cron-secret) sends entry signals to subscribed bot users
+- [x] Finnhub free-plan fallback: RSI endpoint is 403, momentum + liquidity now derived deterministically from the quote (day-range position + % change)
+- [ ] Optional: schedule the broadcast endpoint (pg_cron) for automatic periodic alerts

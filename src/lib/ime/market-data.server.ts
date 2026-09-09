@@ -140,10 +140,36 @@ async function fetchFinnhubData(symbol: string, apiKey: string): Promise<StockDa
         ? Math.round(((high - low) / price) * 10000) / 100
         : undefined;
 
+    // RSI needs a paid Finnhub plan. When it is unavailable, derive a
+    // deterministic RSI-equivalent from the free quote: where the price sits in
+    // the day range, blended with the daily % change.
+    const clamp01 = (n: number) => Math.min(1, Math.max(0, n));
+    const dayChangePct =
+      prevClose !== undefined && prevClose > 0 ? (price - prevClose) / prevClose : undefined;
+    const rangePos =
+      high !== undefined && low !== undefined && high > low
+        ? clamp01((price - low) / (high - low))
+        : undefined;
+    const derivedMomentum =
+      rangePos !== undefined || dayChangePct !== undefined
+        ? Math.round(
+            clamp01(0.6 * (rangePos ?? 0.5) + 0.4 * clamp01(0.5 + (dayChangePct ?? 0) * 12)) * 100
+          ) / 100
+        : undefined;
+    if (rsiValue === undefined && derivedMomentum !== undefined) {
+      rsiValue = Math.round(derivedMomentum * 100 * 100) / 100;
+    }
+
     // Map RSI (0-100) to engine momentum scores (0-1); direction from price vs prev close.
-    const momentumScore = rsiValue !== undefined ? Math.round((rsiValue / 100) * 100) / 100 : undefined;
+    const momentumScore =
+      rsiValue !== undefined ? Math.round((rsiValue / 100) * 100) / 100 : derivedMomentum;
     const direction =
       prevClose !== undefined ? (price >= prevClose ? "LONG" : "SHORT") : undefined;
+    // Liquidity proxy from where the price closes inside the day range.
+    const liquidity =
+      rangePos !== undefined
+        ? { inflow: Math.round(rangePos * 100) / 100, outflow: Math.round((1 - rangePos) * 100) / 100 }
+        : undefined;
 
     // Deterministic Gamma/Delta simulation from quote + RSI (Finnhub has no
     // options data). Same inputs always produce the same scores.
@@ -172,6 +198,7 @@ async function fetchFinnhubData(symbol: string, apiKey: string): Promise<StockDa
         score: simGamma,
       },
       delta: { direction: direction as "LONG" | "SHORT" | undefined, changePct: simDelta },
+      ...(liquidity ? { liquidity } : {}),
       volatility: {
         intraday: intradayRange,
         regime:
