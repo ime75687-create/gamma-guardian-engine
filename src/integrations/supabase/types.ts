@@ -14,6 +14,45 @@ export type Database = {
   }
   public: {
     Tables: {
+      ime_bot_users: {
+        Row: {
+          analysis_type: string
+          chat_id: string
+          created_at: string
+          first_name: string | null
+          focus: string
+          state: string | null
+          subscribed: boolean
+          symbols: string[]
+          updated_at: string
+          username: string | null
+        }
+        Insert: {
+          analysis_type?: string
+          chat_id: string
+          created_at?: string
+          first_name?: string | null
+          focus?: string
+          state?: string | null
+          subscribed?: boolean
+          symbols?: string[]
+          updated_at?: string
+          username?: string | null
+        }
+        Update: {
+          analysis_type?: string
+          chat_id?: string
+          created_at?: string
+          first_name?: string | null
+          focus?: string
+          state?: string | null
+          subscribed?: boolean
+          symbols?: string[]
+          updated_at?: string
+          username?: string | null
+        }
+        Relationships: []
+      }
       ime_decisions: {
         Row: {
           action: string
