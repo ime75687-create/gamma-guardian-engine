@@ -63,7 +63,8 @@ export function analyzeStock(stockData: StockData): ImeResult {
   }
 
   // 5) Decision Engine
-  const criticalMissing = price === undefined || !stockData.gamma?.regime;
+  const criticalMissing = price === undefined;
+  const gammaMissing = !stockData.gamma?.regime;
   let action: ImeResult["decision"]["action"];
   let reason: string;
   let entry: number | undefined;
@@ -80,6 +81,7 @@ export function analyzeStock(stockData: StockData): ImeResult {
     reason = "Unstable price behavior combined with HIGH volatility regime.";
     risk = "HIGH";
   } else if (
+    !gammaMissing &&
     market_regime === "NEGATIVE_GAMMA" &&
     trend === "BULLISH" &&
     momentum_state === "STRONG" &&
@@ -92,6 +94,7 @@ export function analyzeStock(stockData: StockData): ImeResult {
     target = round2(price * 1.02);
     risk = "HIGH";
   } else if (
+    !gammaMissing &&
     market_regime === "POSITIVE_GAMMA" &&
     trend === "BULLISH" &&
     momentum_state !== "WEAK" &&
@@ -106,6 +109,7 @@ export function analyzeStock(stockData: StockData): ImeResult {
   } else {
     action = "WATCH";
     const missing: string[] = [];
+    if (gammaMissing) missing.push("gamma regime unavailable from data source");
     if (trend !== "BULLISH") missing.push("delta trend not bullish");
     if (momentum_state === "WEAK") missing.push("momentum weak");
     if (momentum_state === "MEDIUM" && market_regime === "NEGATIVE_GAMMA")
