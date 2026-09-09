@@ -109,6 +109,7 @@ export function analyzeStock(stockData: StockData): ImeResult {
   } else {
     action = "WATCH";
     const missing: string[] = [];
+    if (gammaMissing) missing.push("gamma regime unavailable from data source");
     if (trend !== "BULLISH") missing.push("delta trend not bullish");
     if (momentum_state === "WEAK") missing.push("momentum weak");
     if (momentum_state === "MEDIUM" && market_regime === "NEGATIVE_GAMMA")
