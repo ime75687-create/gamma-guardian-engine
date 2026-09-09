@@ -94,11 +94,94 @@ async function fetchMenthorQData(symbol: string, apiKey: string): Promise<StockD
   }
 }
 
+// Finnhub: quote (price) + daily RSI (momentum). Engine fields Finnhub can't
+// provide stay undefined — the deterministic engine handles gaps via warnings.
+async function fetchFinnhubData(symbol: string, apiKey: string): Promise<StockData | null> {
+  const sym = encodeURIComponent(symbol.toUpperCase());
+  try {
+    const [quoteRes, rsiRes] = await Promise.all([
+      fetch(`https://finnhub.io/api/v1/quote?symbol=${sym}&token=${apiKey}`),
+      fetch(
+        `https://finnhub.io/api/v1/indicator?symbol=${sym}&resolution=D&indicator=rsi&timeperiod=14&token=${apiKey}`
+      ),
+    ]);
+    if (!quoteRes.ok) {
+      console.error(`Finnhub quote failed for ${symbol} [${quoteRes.status}]: ${await quoteRes.text()}`);
+      return null;
+    }
+    const quote = (await quoteRes.json()) as Record<string, unknown>;
+    const price = typeof quote["c"] === "number" && quote["c"] > 0 ? (quote["c"] as number) : undefined;
+    if (price === undefined) {
+      console.error(`Finnhub quote missing price for ${symbol}:`, quote);
+      return null;
+    }
+
+    let rsiValue: number | undefined;
+    if (rsiRes.ok) {
+      const rsiJson = (await rsiRes.json()) as { rsi?: number[]; s?: string };
+      if (Array.isArray(rsiJson.rsi) && rsiJson.rsi.length > 0) {
+        rsiValue = Math.round(rsiJson.rsi[rsiJson.rsi.length - 1] * 100) / 100;
+      }
+    } else {
+      console.error(`Finnhub RSI failed for ${symbol} [${rsiRes.status}]: ${await rsiRes.text()}`);
+    }
+
+    const prevClose = typeof quote["pc"] === "number" ? (quote["pc"] as number) : undefined;
+    const dayOpen = typeof quote["o"] === "number" ? (quote["o"] as number) : undefined;
+    const gapDetected =
+      prevClose !== undefined && dayOpen !== undefined
+        ? Math.abs(dayOpen - prevClose) / prevClose > 0.02
+        : false;
+    const high = typeof quote["h"] === "number" ? (quote["h"] as number) : undefined;
+    const low = typeof quote["l"] === "number" ? (quote["l"] as number) : undefined;
+    const intradayRange =
+      high !== undefined && low !== undefined && price > 0
+        ? Math.round(((high - low) / price) * 10000) / 100
+        : undefined;
+
+    // Map RSI (0-100) to engine momentum scores (0-1); direction from price vs prev close.
+    const momentumScore = rsiValue !== undefined ? Math.round((rsiValue / 100) * 100) / 100 : undefined;
+    const direction =
+      prevClose !== undefined ? (price >= prevClose ? "LONG" : "SHORT") : undefined;
+
+    return {
+      symbol: symbol.toUpperCase(),
+      price,
+      gamma: {
+        flipLevel: prevClose,
+        regime: undefined, // Finnhub has no gamma regime — engine treats as missing
+      },
+      delta: { direction: direction as "LONG" | "SHORT" | undefined },
+      volatility: {
+        intraday: intradayRange,
+        regime:
+          intradayRange === undefined
+            ? undefined
+            : intradayRange > 5
+              ? "HIGH"
+              : intradayRange > 2
+                ? "MEDIUM"
+                : "LOW",
+      },
+      momentum: { shortTerm: momentumScore, midTerm: momentumScore },
+      priceBehavior: { abnormalMoves: false, gapDetected },
+    };
+  } catch (e) {
+    console.error(`Finnhub fetch error for ${symbol}:`, e);
+    return null;
+  }
+}
+
 export async function getStockData(symbol: string): Promise<{ data: StockData; source: string }> {
-  const apiKey = process.env["MENTHORQ_API_KEY"];
-  if (apiKey) {
-    const live = await fetchMenthorQData(symbol, apiKey);
+  const menthorqKey = process.env["MENTHORQ_API_KEY"];
+  if (menthorqKey) {
+    const live = await fetchMenthorQData(symbol, menthorqKey);
     if (live && live.price !== undefined) return { data: live, source: "menthorq" };
+  }
+  const finnhubKey = process.env["FINNHUB_API_KEY"];
+  if (finnhubKey) {
+    const live = await fetchFinnhubData(symbol, finnhubKey);
+    if (live && live.price !== undefined) return { data: live, source: "finnhub" };
   }
   return { data: simulateStockData(symbol), source: "simulated" };
 }
