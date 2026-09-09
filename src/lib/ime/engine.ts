@@ -67,6 +67,9 @@ export function analyzeStock(stockData: StockData): ImeResult {
   // 5) Decision Engine
   const criticalMissing = price === undefined;
   const gammaMissing = !stockData.gamma?.regime;
+  const gammaSimulated = stockData.gamma?.simulated === true;
+  const gammaScore = stockData.gamma?.score;
+  const deltaChange = stockData.delta?.changePct;
   let action: ImeResult["decision"]["action"];
   let reason: string;
   let entry: number | undefined;
