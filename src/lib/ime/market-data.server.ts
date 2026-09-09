@@ -198,6 +198,7 @@ async function fetchFinnhubData(symbol: string, apiKey: string): Promise<StockDa
         score: simGamma,
       },
       delta: { direction: direction as "LONG" | "SHORT" | undefined, changePct: simDelta },
+      ...(liquidity ? { liquidity } : {}),
       volatility: {
         intraday: intradayRange,
         regime:
