@@ -139,7 +139,7 @@ export const analyzeManual = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: { stockData: StockData }) => {
     const parsed = z.object({ stockData: z.record(z.string(), z.unknown()) }).parse(input);
-    return parsed as { stockData: StockData };
+    return parsed as unknown as { stockData: StockData };
   })
   .handler(async ({ data }) => {
     return analyzeStock(data.stockData);
