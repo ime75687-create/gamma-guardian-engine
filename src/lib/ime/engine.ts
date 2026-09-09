@@ -88,11 +88,6 @@ export function analyzeStock(stockData: StockData): ImeResult {
     liquidityState === "INFLOW"
   ) {
     action = "AGGRESSIVE_ENTRY";
-    trend === "BULLISH" &&
-    momentum_state === "STRONG" &&
-    liquidityState === "INFLOW"
-  ) {
-    action = "AGGRESSIVE_ENTRY";
     reason = "Negative Gamma + strong momentum + inflow liquidity + bullish delta.";
     entry = round2(price);
     stop = round2(price * 0.99);
