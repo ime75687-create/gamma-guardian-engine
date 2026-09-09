@@ -3,7 +3,7 @@ export interface NewsItem {
   source: string;
   url: string;
   datetime: number;
-  summary?: string;
+  summary?: string | undefined;
 }
 
 /** General market news, or company news when a symbol is given. */
