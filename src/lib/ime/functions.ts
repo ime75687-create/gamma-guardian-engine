@@ -125,7 +125,7 @@ export const runAnalysis = createServerFn({ method: "POST" })
         target: result.decision.target ?? null,
         risk: result.decision.risk,
         analysis: result.analysis,
-        raw_data: stockData,
+        raw_data: JSON.parse(JSON.stringify(stockData)),
         alert_sent: alertSent,
       });
       if (insertError) throw new Error(insertError.message);
