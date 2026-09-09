@@ -6,10 +6,16 @@ export interface StockData {
     netGEX?: number | undefined;
     flipLevel?: number | undefined;
     regime?: "POSITIVE" | "NEGATIVE" | undefined;
+    /** true when regime/score are simulated from price+RSI (no real options data) */
+    simulated?: boolean | undefined;
+    /** simulated gamma score (0-1+ scale) */
+    score?: number | undefined;
   };
   delta?: {
     exposure?: number | undefined;
     direction?: "LONG" | "SHORT" | undefined;
+    /** daily change fraction (price vs prev close) */
+    changePct?: number | undefined;
   };
   liquidity?: {
     inflow?: number | undefined;
