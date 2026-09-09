@@ -1,31 +1,31 @@
 export interface StockData {
   symbol: string;
-  price?: number;
-  volume?: number;
+  price?: number | undefined;
+  volume?: number | undefined;
   gamma?: {
-    netGEX?: number;
-    flipLevel?: number;
-    regime?: "POSITIVE" | "NEGATIVE";
+    netGEX?: number | undefined;
+    flipLevel?: number | undefined;
+    regime?: "POSITIVE" | "NEGATIVE" | undefined;
   };
   delta?: {
-    exposure?: number;
-    direction?: "LONG" | "SHORT";
+    exposure?: number | undefined;
+    direction?: "LONG" | "SHORT" | undefined;
   };
   liquidity?: {
-    inflow?: number;
-    outflow?: number;
+    inflow?: number | undefined;
+    outflow?: number | undefined;
   };
   volatility?: {
-    intraday?: number;
-    regime?: "HIGH" | "MEDIUM" | "LOW";
+    intraday?: number | undefined;
+    regime?: "HIGH" | "MEDIUM" | "LOW" | undefined;
   };
   momentum?: {
-    shortTerm?: number;
-    midTerm?: number;
+    shortTerm?: number | undefined;
+    midTerm?: number | undefined;
   };
   priceBehavior?: {
-    abnormalMoves?: boolean;
-    gapDetected?: boolean;
+    abnormalMoves?: boolean | undefined;
+    gapDetected?: boolean | undefined;
   };
 }
 
@@ -60,9 +60,9 @@ export interface ImeResult {
   decision: {
     action: Action;
     reason: string;
-    entry?: number;
-    stop?: number;
-    target?: number;
+    entry?: number | undefined;
+    stop?: number | undefined;
+    target?: number | undefined;
     risk: "HIGH" | "NORMAL" | "LOW";
   };
 }

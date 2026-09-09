@@ -94,14 +94,14 @@ export function analyzeStock(stockData: StockData): ImeResult {
     target = round2(price * 1.02);
     risk = "HIGH";
   } else if (
-    !gammaMissing &&
-    market_regime === "POSITIVE_GAMMA" &&
     trend === "BULLISH" &&
     momentum_state !== "WEAK" &&
     liquidityState !== "OUTFLOW"
   ) {
     action = "CONSERVATIVE_ENTRY";
-    reason = "Positive Gamma + bullish delta + non-weak momentum + liquidity not in outflow.";
+    reason = gammaMissing
+      ? "Bullish delta + non-weak momentum + liquidity not in outflow (gamma regime unavailable from data source — conservative mode)."
+      : "Positive Gamma + bullish delta + non-weak momentum + liquidity not in outflow.";
     entry = round2(price);
     stop = round2(price * 0.995);
     target = round2(price * 1.01);

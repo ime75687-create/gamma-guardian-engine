@@ -120,7 +120,8 @@ async function fetchFinnhubData(symbol: string, apiKey: string): Promise<StockDa
     if (rsiRes.ok) {
       const rsiJson = (await rsiRes.json()) as { rsi?: number[]; s?: string };
       if (Array.isArray(rsiJson.rsi) && rsiJson.rsi.length > 0) {
-        rsiValue = Math.round(rsiJson.rsi[rsiJson.rsi.length - 1] * 100) / 100;
+        const last = rsiJson.rsi[rsiJson.rsi.length - 1];
+        if (typeof last === "number") rsiValue = Math.round(last * 100) / 100;
       }
     } else {
       console.error(`Finnhub RSI failed for ${symbol} [${rsiRes.status}]: ${await rsiRes.text()}`);

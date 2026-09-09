@@ -12,4 +12,4 @@ Open items (waiting on user):
 - Sign up/sign in once in the preview to activate your account
 - Add your Telegram chat ID in the Alerts panel (message your bot first, get chat id)
 - Optional: provide a MenthorQ (or similar) API key to switch from simulated to live data
-- [x] Finnhub integration: FINNHUB_API_KEY saved; live quote + RSI feed the engine (fallback order: MenthorQ → Finnhub → simulated). Finnhub lacks gamma regime, so entries stay WATCH unless MenthorQ data is added
+- [x] Finnhub integration: FINNHUB_API_KEY saved; live quote + RSI feed the engine (fallback order: MenthorQ → Finnhub → simulated). Engine now runs on Finnhub alone: CONSERVATIVE_ENTRY allowed without gamma data (reason notes the gap); AGGRESSIVE_ENTRY still requires gamma regime (MenthorQ)
