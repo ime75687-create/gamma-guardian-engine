@@ -1,0 +1,118 @@
+// Deterministic option-contract suggestion derived from the engine decision.
+// No randomness: same price + horizon + decision always yields the same contract.
+
+import { horizonOf, type HorizonConfig } from "./horizon";
+import type { ImeResult } from "./types";
+
+const round2 = (n: number) => Math.round(n * 100) / 100;
+
+export interface OptionIdea {
+  type: "CALL" | "PUT";
+  strike: number;
+  expiry: string; // YYYY-MM-DD
+  daysToExpiry: number;
+  /** estimated contract premium per share (USD) */
+  premium: number;
+  premiumStop: number;
+  premiumTarget: number;
+  underlyingEntry: number;
+  underlyingStop: number;
+  underlyingTarget: number;
+}
+
+/** Strike increment used by most US listed options. */
+function strikeStep(price: number): number {
+  if (price < 25) return 0.5;
+  if (price < 100) return 1;
+  if (price < 250) return 2.5;
+  return 5;
+}
+
+function roundStrike(price: number): number {
+  const step = strikeStep(price);
+  return Math.round(price / step) * step;
+}
+
+/** Next Friday-based expiry that matches the horizon length. */
+function expiryFor(days: number, now = new Date()): { date: string; days: number } {
+  const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  d.setUTCDate(d.getUTCDate() + days);
+  // snap forward to Friday
+  const shift = (5 - d.getUTCDay() + 7) % 7;
+  d.setUTCDate(d.getUTCDate() + shift);
+  const start = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+  return {
+    date: d.toISOString().slice(0, 10),
+    days: Math.round((d.getTime() - start) / 86_400_000),
+  };
+}
+
+/**
+ * Rough premium estimate: ATM value scales with volatility and sqrt(time),
+ * reduced when the strike is out of the money.
+ */
+function estimatePremium(
+  price: number,
+  strike: number,
+  dte: number,
+  volState: "HIGH" | "MEDIUM" | "LOW",
+  isCall: boolean
+): number {
+  const annualVol = volState === "HIGH" ? 0.6 : volState === "LOW" ? 0.22 : 0.38;
+  const t = Math.max(dte, 1) / 365;
+  const atm = 0.4 * price * annualVol * Math.sqrt(t);
+  const intrinsic = isCall ? Math.max(0, price - strike) : Math.max(0, strike - price);
+  const moneyness = Math.abs(strike - price) / price;
+  const extrinsic = atm * Math.exp(-6 * moneyness);
+  return Math.max(0.05, round2(intrinsic + extrinsic));
+}
+
+export function buildOptionIdea(result: ImeResult, price: number, horizonKey: string): OptionIdea | null {
+  const action = result.decision.action;
+  if (action !== "AGGRESSIVE_ENTRY" && action !== "CONSERVATIVE_ENTRY") return null;
+  const h: HorizonConfig = horizonOf(horizonKey);
+  const bearish = result.analysis.marketMaker.trend === "BEARISH";
+  const isCall = !bearish;
+
+  const rawStrike = isCall ? price * (1 + h.strikeOtmPct) : price * (1 - h.strikeOtmPct);
+  const strike = roundStrike(rawStrike);
+  const { date, days } = expiryFor(h.days);
+  const volState = result.analysis.movement.volatility_state;
+  const premium = estimatePremium(price, strike, days, volState, isCall);
+
+  const aggressive = action === "AGGRESSIVE_ENTRY";
+  const stopPct = h.stopPct * (aggressive ? 1.2 : 1);
+  const targetPct = h.targetPct * (aggressive ? 1.2 : 1);
+  const underlyingStop = round2(isCall ? price * (1 - stopPct) : price * (1 + stopPct));
+  const underlyingTarget = round2(isCall ? price * (1 + targetPct) : price * (1 - targetPct));
+
+  const targetPremium = estimatePremium(underlyingTarget, strike, Math.max(1, days - 1), volState, isCall);
+
+  return {
+    type: isCall ? "CALL" : "PUT",
+    strike: round2(strike),
+    expiry: date,
+    daysToExpiry: days,
+    premium,
+    premiumStop: round2(Math.max(0.05, premium * 0.6)),
+    premiumTarget: round2(Math.max(premium * 1.15, targetPremium)),
+    underlyingEntry: round2(price),
+    underlyingStop,
+    underlyingTarget,
+  };
+}
+
+export function formatOptionIdea(idea: OptionIdea, symbol: string): string {
+  const kind = idea.type === "CALL" ? "شراء عقد كول (صاعد)" : "شراء عقد بوت (هابط)";
+  return [
+    "",
+    "📄 <b>عقد الأوبشن المقترح</b>",
+    `${kind}`,
+    `العقد: <code>${symbol} ${idea.expiry} ${idea.strike} ${idea.type}</code>`,
+    `تنتهي خلال: ${idea.daysToExpiry} يوم`,
+    `سعر العقد التقريبي: <code>${idea.premium}</code> للسهم (≈ <code>${Math.round(idea.premium * 100)}$</code> للعقد)`,
+    `هدف العقد: <code>${idea.premiumTarget}</code> | وقف العقد: <code>${idea.premiumStop}</code>`,
+    `السهم — دخول <code>${idea.underlyingEntry}</code> | وقف <code>${idea.underlyingStop}</code> | هدف <code>${idea.underlyingTarget}</code>`,
+    "<i>الأسعار تقديرية محسوبة من التذبذب والمدة، تأكد من سعر السوق قبل التنفيذ.</i>",
+  ].join("\n");
+}
