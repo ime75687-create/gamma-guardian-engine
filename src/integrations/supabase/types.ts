@@ -86,6 +86,24 @@ export type Database = {
         }
         Relationships: []
       }
+      ime_cron_tokens: {
+        Row: {
+          created_at: string
+          id: number
+          token: string
+        }
+        Insert: {
+          created_at?: string
+          id?: number
+          token?: string
+        }
+        Update: {
+          created_at?: string
+          id?: number
+          token?: string
+        }
+        Relationships: []
+      }
       ime_decisions: {
         Row: {
           action: string
