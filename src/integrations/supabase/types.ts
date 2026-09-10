@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      ime_bot_alerts: {
+        Row: {
+          action: string
+          chat_id: string
+          created_at: string
+          day: string
+          horizon: string
+          id: string
+          symbol: string
+        }
+        Insert: {
+          action: string
+          chat_id: string
+          created_at?: string
+          day?: string
+          horizon: string
+          id?: string
+          symbol: string
+        }
+        Update: {
+          action?: string
+          chat_id?: string
+          created_at?: string
+          day?: string
+          horizon?: string
+          id?: string
+          symbol?: string
+        }
+        Relationships: []
+      }
       ime_bot_users: {
         Row: {
           analysis_type: string
@@ -21,6 +51,7 @@ export type Database = {
           created_at: string
           first_name: string | null
           focus: string
+          horizon: string
           state: string | null
           subscribed: boolean
           symbols: string[]
@@ -33,6 +64,7 @@ export type Database = {
           created_at?: string
           first_name?: string | null
           focus?: string
+          horizon?: string
           state?: string | null
           subscribed?: boolean
           symbols?: string[]
@@ -45,6 +77,7 @@ export type Database = {
           created_at?: string
           first_name?: string | null
           focus?: string
+          horizon?: string
           state?: string | null
           subscribed?: boolean
           symbols?: string[]
