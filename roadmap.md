@@ -20,3 +20,9 @@ Open items (waiting on user):
 - [x] Broadcast endpoint /api/public/ime/broadcast (x-cron-secret) sends entry signals to subscribed bot users
 - [x] Finnhub free-plan fallback: RSI endpoint is 403, momentum + liquidity now derived deterministically from the quote (day-range position + % change)
 - [ ] Optional: schedule the broadcast endpoint (pg_cron) for automatic periodic alerts
+
+## Trade horizon + options (done)
+- [x] Telegram users pick horizon: DAY / WEEK / MONTH (ime_bot_users.horizon)
+- [x] Deterministic option contract suggestion (type, strike, expiry, premium est, contract stop/target) in src/lib/ime/options.ts
+- [x] Auto-push entry signals every 30 min, Mon-Fri 13-20 UTC via pg_cron -> /api/public/ime/broadcast (x-cron-token from ime_cron_tokens)
+- [x] Per-day dedup of alerts in ime_bot_alerts
