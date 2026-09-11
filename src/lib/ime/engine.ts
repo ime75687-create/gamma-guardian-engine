@@ -150,6 +150,22 @@ export function analyzeStock(stockData: StockData): ImeResult {
     reason += ` Data gaps: ${warnings.join(", ")}.`;
   }
 
+  // Deterministic conviction score — how many independent signals agree.
+  let confidence =
+    action === "AGGRESSIVE_ENTRY" ? 65 : action === "CONSERVATIVE_ENTRY" ? 50 : action === "WATCH" ? 30 : 5;
+  if (momentum_state === "STRONG") confidence += 10;
+  else if (momentum_state === "MEDIUM") confidence += 4;
+  else confidence -= 10;
+  if (liquidityState === "INFLOW" && trend === "BULLISH") confidence += 10;
+  else if (liquidityState === "OUTFLOW") confidence -= 12;
+  if (volatility_state === "LOW") confidence += 5;
+  else if (volatility_state === "HIGH") confidence -= 10;
+  if (behavior_state === "UNSTABLE") confidence -= 12;
+  if (gammaSimulated) confidence -= 8;
+  if (gammaMissing) confidence -= 12;
+  if (flip_state === "AT") confidence -= 5;
+  confidence = Math.max(0, Math.min(95, Math.round(confidence)));
+
   return {
     symbol,
     analysis: {
@@ -158,6 +174,6 @@ export function analyzeStock(stockData: StockData): ImeResult {
       behavior: { behavior_state, behavior_flag },
       liquidity: { state: liquidityState, netFlow },
     },
-    decision: { action, reason, entry, stop, target, risk },
+    decision: { action, reason, entry, stop, target, risk, confidence },
   };
 }

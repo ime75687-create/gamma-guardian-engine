@@ -1,56 +1,5 @@
 import type { StockData } from "./types";
 
-function hashCode(s: string): number {
-  let h = 0;
-  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
-  return Math.abs(h);
-}
-
-// Deterministic demo data so a symbol always looks the same within a day.
-function simulateStockData(symbol: string): StockData {
-  const dayKey = new Date().toISOString().slice(0, 10);
-  const seed = hashCode(symbol.toUpperCase() + dayKey);
-  const rand = (n: number) => {
-    const x = Math.sin(seed * (n + 1)) * 10000;
-    return x - Math.floor(x);
-  };
-
-  const price = Math.round((50 + rand(1) * 450) * 100) / 100;
-  const negativeGamma = rand(2) < 0.45;
-  const flipLevel = Math.round(price * (0.97 + rand(3) * 0.06) * 100) / 100;
-  const direction = rand(4) < 0.55 ? "LONG" : "SHORT";
-  const volRegime = rand(5) < 0.25 ? "HIGH" : rand(5) < 0.6 ? "MEDIUM" : "LOW";
-  const shortTerm = Math.round(rand(6) * 100) / 100;
-  const midTerm = Math.round(rand(7) * 100) / 100;
-  const inflow = Math.round(rand(8) * 100) / 100;
-  const outflow = Math.round(rand(9) * 100) / 100;
-
-  return {
-    symbol: symbol.toUpperCase(),
-    price,
-    volume: Math.round(500_000 + rand(10) * 20_000_000),
-    gamma: {
-      netGEX: Math.round((rand(11) - 0.5) * 4_000_000),
-      flipLevel,
-      regime: negativeGamma ? "NEGATIVE" : "POSITIVE",
-    },
-    delta: {
-      exposure: Math.round((rand(12) - 0.3) * 2_000_000),
-      direction: direction as "LONG" | "SHORT",
-    },
-    liquidity: { inflow, outflow },
-    volatility: {
-      intraday: Math.round(rand(13) * 150) / 100,
-      regime: volRegime as "HIGH" | "MEDIUM" | "LOW",
-    },
-    momentum: { shortTerm, midTerm },
-    priceBehavior: {
-      abnormalMoves: rand(14) < 0.08,
-      gapDetected: rand(15) < 0.08,
-    },
-  };
-}
-
 async function fetchMenthorQData(symbol: string, apiKey: string): Promise<StockData | null> {
   try {
     const res = await fetch(
@@ -219,6 +168,14 @@ async function fetchFinnhubData(symbol: string, apiKey: string): Promise<StockDa
   }
 }
 
+/** Thrown when no real market data can be fetched. We never fabricate prices. */
+export class NoLiveDataError extends Error {
+  constructor(symbol: string) {
+    super(`No live market data available for ${symbol}`);
+    this.name = "NoLiveDataError";
+  }
+}
+
 export async function getStockData(symbol: string): Promise<{ data: StockData; source: string }> {
   const menthorqKey = process.env["MENTHORQ_API_KEY"];
   if (menthorqKey) {
@@ -227,8 +184,12 @@ export async function getStockData(symbol: string): Promise<{ data: StockData; s
   }
   const finnhubKey = process.env["FINNHUB_API_KEY"];
   if (finnhubKey) {
-    const live = await fetchFinnhubData(symbol, finnhubKey);
-    if (live && live.price !== undefined) return { data: live, source: "finnhub" };
+    // one retry — transient rate limits must never turn into fake prices
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const live = await fetchFinnhubData(symbol, finnhubKey);
+      if (live && live.price !== undefined) return { data: live, source: "finnhub" };
+      if (attempt === 0) await new Promise((r) => setTimeout(r, 700));
+    }
   }
-  return { data: simulateStockData(symbol), source: "simulated" };
+  throw new NoLiveDataError(symbol);
 }

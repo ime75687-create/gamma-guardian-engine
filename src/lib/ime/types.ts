@@ -70,5 +70,7 @@ export interface ImeResult {
     stop?: number | undefined;
     target?: number | undefined;
     risk: "HIGH" | "NORMAL" | "LOW";
+    /** deterministic 0-95 conviction score for the signal */
+    confidence: number;
   };
 }

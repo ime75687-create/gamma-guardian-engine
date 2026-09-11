@@ -96,12 +96,20 @@ export const runAnalysis = createServerFn({ method: "POST" })
       .maybeSingle();
 
     const alertNotes: string[] = [];
-    let source = "simulated";
+    let source = "none";
     const results = [];
 
     for (const symbol of symbols) {
-      const { data: stockData, source: src } = await getStockData(symbol);
-      source = src;
+      let stockData;
+      try {
+        const live = await getStockData(symbol);
+        stockData = live.data;
+        source = live.source;
+      } catch (e) {
+        alertNotes.push(`${symbol}: لا تتوفر بيانات سوق حقيقية الآن`);
+        console.error(`live data unavailable for ${symbol}:`, e);
+        continue;
+      }
       const result = analyzeStock(stockData);
 
       let alertSent = false;

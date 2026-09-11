@@ -140,19 +140,22 @@ export async function analyzeAndFormat(
   symbol: string,
   full: boolean,
   horizon = "DAY"
-): Promise<{ text: string; action: string }> {
+): Promise<{ text: string; action: string; confidence: number }> {
   const { data, source } = await getStockData(symbol);
   const result = analyzeStock(data);
   const srcLabel =
-    source === "menthorq" ? "MenthorQ (حي)" : source === "finnhub" ? "Finnhub (حي)" : "محاكاة";
+    source === "menthorq" ? "MenthorQ (حي)" : source === "finnhub" ? "Finnhub (حي)" : source;
   const priceLine = data.price !== undefined ? `السعر: <code>${data.price}</code>\n` : "";
   const hzLine = `المدة: <b>${HORIZON_LABELS[(horizon as HorizonKey) ?? "DAY"] ?? horizon}</b>\n`;
   const idea =
     data.price !== undefined ? buildOptionIdea(result, data.price, horizon) : null;
   const optionBlock = idea ? formatOptionIdea(idea, result.symbol) : "";
+  const confidence = result.decision.confidence;
+  const confLine = `درجة الثقة: <b>${confidence}%</b>\n`;
   return {
-    text: `${priceLine}${hzLine}${formatDecision(result, full)}${optionBlock}\n\n<i>المصدر: ${srcLabel}</i>`,
+    text: `${priceLine}${hzLine}${confLine}${formatDecision(result, full)}${optionBlock}\n\n<i>المصدر: ${srcLabel} — سعر لحظي حقيقي</i>`,
     action: result.decision.action,
+    confidence,
   };
 }
 
@@ -319,7 +322,11 @@ export async function handleTelegramUpdate(update: Record<string, any>): Promise
       await sendTelegramMessage(chatId, body.text, MAIN_MENU);
     } catch (e) {
       console.error(`bot symbol analyze failed for ${symbol}:`, e);
-      await sendTelegramMessage(chatId, "تعذر تحليل هذا الرمز. تأكد من الرمز وحاول مرة أخرى.", MAIN_MENU);
+      await sendTelegramMessage(
+        chatId,
+        "تعذر جلب سعر حقيقي لهذا الرمز الآن. لن أرسل أي سعر تقديري — جرّب بعد قليل أو تأكد من الرمز.",
+        MAIN_MENU
+      );
     }
     return;
   }
@@ -336,7 +343,8 @@ export async function broadcastAlerts(): Promise<{ users: number; sent: number }
     .eq("subscribed", true);
   const rows = (users ?? []) as unknown as BotUser[];
 
-  const cache = new Map<string, { action: string; text: string }>();
+  const cache = new Map<string, { action: string; text: string; confidence: number }>();
+  const MIN_CONFIDENCE = 62;
   const today = new Date().toISOString().slice(0, 10);
   let sent = 0;
 
@@ -359,6 +367,8 @@ export async function broadcastAlerts(): Promise<{ users: number; sent: number }
         }
       }
       if (item.action !== "AGGRESSIVE_ENTRY" && item.action !== "CONSERVATIVE_ENTRY") continue;
+      // Only push high-conviction ideas automatically.
+      if (item.confidence < MIN_CONFIDENCE) continue;
 
       // Don't repeat the same idea to the same user on the same day.
       const { error } = await sb.from("ime_bot_alerts").insert({
