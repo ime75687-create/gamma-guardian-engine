@@ -322,7 +322,11 @@ export async function handleTelegramUpdate(update: Record<string, any>): Promise
       await sendTelegramMessage(chatId, body.text, MAIN_MENU);
     } catch (e) {
       console.error(`bot symbol analyze failed for ${symbol}:`, e);
-      await sendTelegramMessage(chatId, "تعذر تحليل هذا الرمز. تأكد من الرمز وحاول مرة أخرى.", MAIN_MENU);
+      await sendTelegramMessage(
+        chatId,
+        "تعذر جلب سعر حقيقي لهذا الرمز الآن. لن أرسل أي سعر تقديري — جرّب بعد قليل أو تأكد من الرمز.",
+        MAIN_MENU
+      );
     }
     return;
   }
@@ -339,7 +343,8 @@ export async function broadcastAlerts(): Promise<{ users: number; sent: number }
     .eq("subscribed", true);
   const rows = (users ?? []) as unknown as BotUser[];
 
-  const cache = new Map<string, { action: string; text: string }>();
+  const cache = new Map<string, { action: string; text: string; confidence: number }>();
+  const MIN_CONFIDENCE = 70;
   const today = new Date().toISOString().slice(0, 10);
   let sent = 0;
 
@@ -362,6 +367,8 @@ export async function broadcastAlerts(): Promise<{ users: number; sent: number }
         }
       }
       if (item.action !== "AGGRESSIVE_ENTRY" && item.action !== "CONSERVATIVE_ENTRY") continue;
+      // Only push high-conviction ideas automatically.
+      if (item.confidence < MIN_CONFIDENCE) continue;
 
       // Don't repeat the same idea to the same user on the same day.
       const { error } = await sb.from("ime_bot_alerts").insert({
