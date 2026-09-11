@@ -150,9 +150,12 @@ export async function analyzeAndFormat(
   const idea =
     data.price !== undefined ? buildOptionIdea(result, data.price, horizon) : null;
   const optionBlock = idea ? formatOptionIdea(idea, result.symbol) : "";
+  const confidence = result.decision.confidence;
+  const confLine = `درجة الثقة: <b>${confidence}%</b>\n`;
   return {
-    text: `${priceLine}${hzLine}${formatDecision(result, full)}${optionBlock}\n\n<i>المصدر: ${srcLabel}</i>`,
+    text: `${priceLine}${hzLine}${confLine}${formatDecision(result, full)}${optionBlock}\n\n<i>المصدر: ${srcLabel} — سعر لحظي حقيقي</i>`,
     action: result.decision.action,
+    confidence,
   };
 }
 
