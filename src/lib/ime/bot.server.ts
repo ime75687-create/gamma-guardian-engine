@@ -344,7 +344,7 @@ export async function broadcastAlerts(): Promise<{ users: number; sent: number }
   const rows = (users ?? []) as unknown as BotUser[];
 
   const cache = new Map<string, { action: string; text: string; confidence: number }>();
-  const MIN_CONFIDENCE = 70;
+  const MIN_CONFIDENCE = 62;
   const today = new Date().toISOString().slice(0, 10);
   let sent = 0;
 
