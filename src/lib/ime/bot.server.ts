@@ -140,11 +140,11 @@ export async function analyzeAndFormat(
   symbol: string,
   full: boolean,
   horizon = "DAY"
-): Promise<{ text: string; action: string }> {
+): Promise<{ text: string; action: string; confidence: number }> {
   const { data, source } = await getStockData(symbol);
   const result = analyzeStock(data);
   const srcLabel =
-    source === "menthorq" ? "MenthorQ (حي)" : source === "finnhub" ? "Finnhub (حي)" : "محاكاة";
+    source === "menthorq" ? "MenthorQ (حي)" : source === "finnhub" ? "Finnhub (حي)" : source;
   const priceLine = data.price !== undefined ? `السعر: <code>${data.price}</code>\n` : "";
   const hzLine = `المدة: <b>${HORIZON_LABELS[(horizon as HorizonKey) ?? "DAY"] ?? horizon}</b>\n`;
   const idea =
