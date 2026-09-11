@@ -219,6 +219,14 @@ async function fetchFinnhubData(symbol: string, apiKey: string): Promise<StockDa
   }
 }
 
+/** Thrown when no real market data can be fetched. We never fabricate prices. */
+export class NoLiveDataError extends Error {
+  constructor(symbol: string) {
+    super(`No live market data available for ${symbol}`);
+    this.name = "NoLiveDataError";
+  }
+}
+
 export async function getStockData(symbol: string): Promise<{ data: StockData; source: string }> {
   const menthorqKey = process.env["MENTHORQ_API_KEY"];
   if (menthorqKey) {
@@ -227,8 +235,12 @@ export async function getStockData(symbol: string): Promise<{ data: StockData; s
   }
   const finnhubKey = process.env["FINNHUB_API_KEY"];
   if (finnhubKey) {
-    const live = await fetchFinnhubData(symbol, finnhubKey);
-    if (live && live.price !== undefined) return { data: live, source: "finnhub" };
+    // one retry — transient rate limits must never turn into fake prices
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const live = await fetchFinnhubData(symbol, finnhubKey);
+      if (live && live.price !== undefined) return { data: live, source: "finnhub" };
+      if (attempt === 0) await new Promise((r) => setTimeout(r, 700));
+    }
   }
-  return { data: simulateStockData(symbol), source: "simulated" };
+  throw new NoLiveDataError(symbol);
 }
