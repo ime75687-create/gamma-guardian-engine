@@ -33,18 +33,29 @@ function roundStrike(price: number): number {
   return Math.round(price / step) * step;
 }
 
-/** Next Friday-based expiry that matches the horizon length. */
-function expiryFor(days: number, now = new Date()): { date: string; days: number } {
-  const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+/**
+ * Short-dated expiry: the first Friday on/after today+days, but never further
+ * out than maxDays (falls back to the nearest weekday inside the window).
+ */
+function expiryFor(days: number, maxDays: number, now = new Date()): { date: string; days: number } {
+  const start = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+  const d = new Date(start);
   d.setUTCDate(d.getUTCDate() + days);
-  // snap forward to Friday
   const shift = (5 - d.getUTCDay() + 7) % 7;
   d.setUTCDate(d.getUTCDate() + shift);
-  const start = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
-  return {
-    date: d.toISOString().slice(0, 10),
-    days: Math.round((d.getTime() - start) / 86_400_000),
-  };
+  let out = Math.round((d.getTime() - start) / 86_400_000);
+  if (out > maxDays) {
+    // step back a week at a time while still inside the window
+    while (out - 7 >= 0 && out > maxDays) out -= 7;
+    if (out > maxDays) out = maxDays;
+    d.setTime(start + out * 86_400_000);
+    // avoid weekends
+    while (d.getUTCDay() === 0 || d.getUTCDay() === 6) {
+      d.setUTCDate(d.getUTCDate() - 1);
+      out -= 1;
+    }
+  }
+  return { date: d.toISOString().slice(0, 10), days: Math.max(0, out) };
 }
 
 /**
@@ -74,11 +85,21 @@ export function buildOptionIdea(result: ImeResult, price: number, horizonKey: st
   const bearish = result.analysis.marketMaker.trend === "BEARISH";
   const isCall = !bearish;
 
-  const rawStrike = isCall ? price * (1 + h.strikeOtmPct) : price * (1 - h.strikeOtmPct);
-  const strike = roundStrike(rawStrike);
-  const { date, days } = expiryFor(h.days);
+  const { date, days } = expiryFor(h.days, h.maxDays);
   const volState = result.analysis.movement.volatility_state;
-  const premium = estimatePremium(price, strike, days, volState, isCall);
+  const step = strikeStep(price);
+
+  // Cheap-contract search: start at the horizon strike and walk further OTM
+  // until the estimated premium fits the budget (bounded, deterministic).
+  let strike = roundStrike(isCall ? price * (1 + h.strikeOtmPct) : price * (1 - h.strikeOtmPct));
+  const maxOtm = h.maxOtmPct;
+  let premium = estimatePremium(price, strike, days, volState, isCall);
+  for (let i = 0; i < 12 && premium > h.maxPremium; i++) {
+    const next = isCall ? strike + step : strike - step;
+    if (next <= 0 || Math.abs(next - price) / price > maxOtm) break;
+    strike = next;
+    premium = estimatePremium(price, strike, days, volState, isCall);
+  }
 
   const aggressive = action === "AGGRESSIVE_ENTRY";
   const stopPct = h.stopPct * (aggressive ? 1.2 : 1);
