@@ -23,6 +23,8 @@ export interface HorizonConfig {
   maxDays: number;
   /** cheap-contract budget: max estimated premium per share (USD) */
   maxPremium: number;
+  /** never suggest a strike further out of the money than this */
+  maxOtmPct: number;
 }
 
 export const HORIZONS: Record<HorizonKey, HorizonConfig> = {
@@ -34,6 +36,7 @@ export const HORIZONS: Record<HorizonKey, HorizonConfig> = {
     days: 0,
     maxDays: 2,
     maxPremium: 0.8,
+    maxOtmPct: 0.012,
   },
   DAY: {
     key: "DAY",
@@ -43,6 +46,7 @@ export const HORIZONS: Record<HorizonKey, HorizonConfig> = {
     days: 1,
     maxDays: 5,
     maxPremium: 1.5,
+    maxOtmPct: 0.02,
   },
   WEEK: {
     key: "WEEK",
@@ -52,6 +56,7 @@ export const HORIZONS: Record<HorizonKey, HorizonConfig> = {
     days: 4,
     maxDays: 9,
     maxPremium: 3,
+    maxOtmPct: 0.04,
   },
   MONTH: {
     key: "MONTH",
@@ -61,6 +66,7 @@ export const HORIZONS: Record<HorizonKey, HorizonConfig> = {
     days: 21,
     maxDays: 35,
     maxPremium: 6,
+    maxOtmPct: 0.08,
   },
 };
 

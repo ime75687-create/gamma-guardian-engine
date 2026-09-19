@@ -92,10 +92,11 @@ export function buildOptionIdea(result: ImeResult, price: number, horizonKey: st
   // Cheap-contract search: start at the horizon strike and walk further OTM
   // until the estimated premium fits the budget (bounded, deterministic).
   let strike = roundStrike(isCall ? price * (1 + h.strikeOtmPct) : price * (1 - h.strikeOtmPct));
+  const maxOtm = h.maxOtmPct;
   let premium = estimatePremium(price, strike, days, volState, isCall);
   for (let i = 0; i < 12 && premium > h.maxPremium; i++) {
     const next = isCall ? strike + step : strike - step;
-    if (next <= 0 || Math.abs(next - price) / price > 0.12) break;
+    if (next <= 0 || Math.abs(next - price) / price > maxOtm) break;
     strike = next;
     premium = estimatePremium(price, strike, days, volState, isCall);
   }
