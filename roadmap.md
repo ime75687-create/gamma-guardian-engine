@@ -26,3 +26,8 @@ Open items (waiting on user):
 - [x] Deterministic option contract suggestion (type, strike, expiry, premium est, contract stop/target) in src/lib/ime/options.ts
 - [x] Auto-push entry signals every 30 min, Mon-Fri 13-20 UTC via pg_cron -> /api/public/ime/broadcast (x-cron-token from ime_cron_tokens)
 - [x] Per-day dedup of alerts in ime_bot_alerts
+
+## Scalp + cheap contracts (done)
+- [x] New SCALP horizon (minutes/hours) in horizon.ts + Telegram menu button
+- [x] Short-dated expiries: maxDays cap per horizon (SCALP 2 / DAY 5 / WEEK 9 / MONTH 35) — no more 2-week contracts for day trades
+- [x] Cheap-contract search: walks strike OTM toward a premium budget (0.8 / 1.5 / 3 / 6 per share), capped by maxOtmPct so strikes stay realistic
