@@ -221,6 +221,12 @@ function Dashboard() {
             <span className="ml-2 text-sm text-muted-foreground">Integrated Market Engine</span>
           </div>
           <div className="flex items-center gap-2">
+            <Link
+              to="/chart-review"
+              className="rounded-lg border px-3 py-2 text-sm text-muted-foreground transition hover:bg-accent"
+            >
+              📈 Chart risk
+            </Link>
             <button
               onClick={runAll}
               disabled={running}
