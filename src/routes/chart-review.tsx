@@ -34,17 +34,26 @@ function ChartReview() {
   const [summary, setSummary] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  function onPick(file: File | undefined) {
+  function onPick(file: File | undefined): void {
     if (!file) return;
-    if (!file.type.startsWith("image/")) return toast.error("الملف لازم يكون صورة");
-    if (file.size > 5_000_000) return toast.error("حجم الصورة كبير — أقل من 5 ميجا");
+    if (!file.type.startsWith("image/")) {
+      toast.error("الملف لازم يكون صورة");
+      return;
+    }
+    if (file.size > 5_000_000) {
+      toast.error("حجم الصورة كبير — أقل من 5 ميجا");
+      return;
+    }
     const reader = new FileReader();
     reader.onload = () => setImage(String(reader.result));
     reader.readAsDataURL(file);
   }
 
-  async function submit() {
-    if (!image) return toast.error("ارفع صورة الشارت أولاً");
+  async function submit(): Promise<void> {
+    if (!image) {
+      toast.error("ارفع صورة الشارت أولاً");
+      return;
+    }
     setLoading(true);
     setSummary(null);
     try {
