@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as ChartReviewRouteImport } from './routes/chart-review'
 import { Route as ApiPublicImeBroadcastRouteImport } from './routes/api/public/ime/broadcast'
 import { Route as ApiPublicTelegramWebhookRouteImport } from './routes/api/public/telegram/webhook'
 
@@ -22,6 +23,11 @@ const IndexRoute = IndexRouteImport.update({
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ChartReviewRoute = ChartReviewRouteImport.update({
+  id: '/chart-review',
+  path: '/chart-review',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPublicImeBroadcastRoute = ApiPublicImeBroadcastRouteImport.update({
@@ -39,12 +45,14 @@ const ApiPublicTelegramWebhookRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/chart-review': typeof ChartReviewRoute
   '/api/public/ime/broadcast': typeof ApiPublicImeBroadcastRoute
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/chart-review': typeof ChartReviewRoute
   '/api/public/ime/broadcast': typeof ApiPublicImeBroadcastRoute
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
 }
@@ -52,20 +60,30 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/chart-review': typeof ChartReviewRoute
   '/api/public/ime/broadcast': typeof ApiPublicImeBroadcastRoute
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/auth' | '/api/public/ime/broadcast' | '/api/public/telegram/webhook'
+    | '/'
+    | '/auth'
+    | '/chart-review'
+    | '/api/public/ime/broadcast'
+    | '/api/public/telegram/webhook'
   fileRoutesByTo: FileRoutesByTo
   to:
-    '/' | '/auth' | '/api/public/ime/broadcast' | '/api/public/telegram/webhook'
+    | '/'
+    | '/auth'
+    | '/chart-review'
+    | '/api/public/ime/broadcast'
+    | '/api/public/telegram/webhook'
   id:
     | '__root__'
     | '/'
     | '/auth'
+    | '/chart-review'
     | '/api/public/ime/broadcast'
     | '/api/public/telegram/webhook'
   fileRoutesById: FileRoutesById
@@ -73,6 +91,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthRoute: typeof AuthRoute
+  ChartReviewRoute: typeof ChartReviewRoute
   ApiPublicImeBroadcastRoute: typeof ApiPublicImeBroadcastRoute
   ApiPublicTelegramWebhookRoute: typeof ApiPublicTelegramWebhookRoute
 }
@@ -91,6 +110,13 @@ declare module '@tanstack/react-router' {
       path: '/auth'
       fullPath: '/auth'
       preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/chart-review': {
+      id: '/chart-review'
+      path: '/chart-review'
+      fullPath: '/chart-review'
+      preLoaderRoute: typeof ChartReviewRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/ime/broadcast': {
@@ -113,6 +139,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthRoute: AuthRoute,
+  ChartReviewRoute: ChartReviewRoute,
   ApiPublicImeBroadcastRoute: ApiPublicImeBroadcastRoute,
   ApiPublicTelegramWebhookRoute: ApiPublicTelegramWebhookRoute,
 }
