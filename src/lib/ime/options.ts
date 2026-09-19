@@ -58,6 +58,26 @@ function expiryFor(days: number, maxDays: number, now = new Date()): { date: str
   return { date: d.toISOString().slice(0, 10), days: Math.max(0, out) };
 }
 
+/**
+ * Rough premium estimate: ATM value scales with volatility and sqrt(time),
+ * reduced when the strike is out of the money.
+ */
+function estimatePremium(
+  price: number,
+  strike: number,
+  dte: number,
+  volState: "HIGH" | "MEDIUM" | "LOW",
+  isCall: boolean
+): number {
+  const annualVol = volState === "HIGH" ? 0.6 : volState === "LOW" ? 0.22 : 0.38;
+  const t = Math.max(dte, 1) / 365;
+  const atm = 0.4 * price * annualVol * Math.sqrt(t);
+  const intrinsic = isCall ? Math.max(0, price - strike) : Math.max(0, strike - price);
+  const moneyness = Math.abs(strike - price) / price;
+  const extrinsic = atm * Math.exp(-6 * moneyness);
+  return Math.max(0.05, round2(intrinsic + extrinsic));
+}
+
 export function buildOptionIdea(result: ImeResult, price: number, horizonKey: string): OptionIdea | null {
   const action = result.decision.action;
   if (action !== "AGGRESSIVE_ENTRY" && action !== "CONSERVATIVE_ENTRY") return null;
