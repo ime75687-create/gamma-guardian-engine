@@ -31,3 +31,5 @@ Open items (waiting on user):
 - [x] New SCALP horizon (minutes/hours) in horizon.ts + Telegram menu button
 - [x] Short-dated expiries: maxDays cap per horizon (SCALP 2 / DAY 5 / WEEK 9 / MONTH 35) — no more 2-week contracts for day trades
 - [x] Cheap-contract search: walks strike OTM toward a premium budget (0.8 / 1.5 / 3 / 6 per share), capped by maxOtmPct so strikes stay realistic
+
+- [x] Chart risk review page (/chart-review): upload chart screenshot + market context, AI summarizes scalp & day-trade risks
