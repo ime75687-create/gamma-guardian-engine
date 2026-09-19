@@ -49,13 +49,14 @@ const MAIN_MENU = {
 const HORIZON_MENU = {
   inline_keyboard: [
     [
+      { text: "🔥 سكالب (دقائق)", callback_data: "hz:SCALP" },
       { text: "⚡ مضاربة يومية", callback_data: "hz:DAY" },
-      { text: "📅 صفقات أسبوعية", callback_data: "hz:WEEK" },
     ],
     [
+      { text: "📅 صفقات أسبوعية", callback_data: "hz:WEEK" },
       { text: "🗓 صفقات شهرية", callback_data: "hz:MONTH" },
-      { text: "⬅️ القائمة", callback_data: "act:menu" },
     ],
+    [{ text: "⬅️ القائمة", callback_data: "act:menu" }],
   ],
 };
 
