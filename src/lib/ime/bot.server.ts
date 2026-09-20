@@ -4,8 +4,8 @@ import { getStockData } from "./market-data.server";
 import { fetchMarketNews } from "./news.server";
 import { formatDecision, sendTelegramMessage, telegramCall } from "./telegram.server";
 import { FOCUS_LABELS, symbolsForFocus, type FocusKey } from "./universe";
-import { HORIZON_LABELS, type HorizonKey } from "./horizon";
-import { buildOptionIdea, formatOptionIdea } from "./options";
+import { HORIZON_LABELS, horizonOf, type HorizonKey } from "./horizon";
+import { buildOptionIdea, formatOptionIdea, type OptionIdea } from "./options";
 
 export interface BotUser {
   chat_id: string;
@@ -14,6 +14,24 @@ export interface BotUser {
   horizon: string;
   subscribed: boolean;
   state: string | null;
+  muted_until: string | null;
+  min_confidence: number;
+}
+
+export interface BotTrade {
+  id: string;
+  chat_id: string;
+  symbol: string;
+  action: string;
+  horizon: string;
+  option_idea: OptionIdea | null;
+  entry: number | null;
+  stop: number | null;
+  target: number | null;
+  status: string; // SENT | JOINED | DECLINED | CLOSED_TARGET | CLOSED_STOP | EXPIRED
+  last_price: number | null;
+  created_at: string;
+  updated_at: string;
 }
 
 let _client: SupabaseClient | null = null;
@@ -36,13 +54,16 @@ const MAIN_MENU = {
     ],
     [
       { text: "📰 أخبار السوق", callback_data: "act:news" },
-      { text: "⚙️ نوع التحليل", callback_data: "act:type" },
+      { text: "📋 صفقاتي", callback_data: "act:trades" },
     ],
     [
+      { text: "⚙️ نوع التحليل", callback_data: "act:type" },
       { text: "🎯 وش أحلل لك؟", callback_data: "act:focus" },
-      { text: "⏱ مدة الصفقة", callback_data: "act:horizon" },
     ],
-    [{ text: "🔔 التنبيهات التلقائية", callback_data: "act:sub" }],
+    [
+      { text: "⏱ مدة الصفقة", callback_data: "act:horizon" },
+      { text: "🔔 التنبيهات", callback_data: "act:alerts" },
+    ],
   ],
 };
 
@@ -50,6 +71,10 @@ const HORIZON_MENU = {
   inline_keyboard: [
     [
       { text: "🔥 سكالب (دقائق)", callback_data: "hz:SCALP" },
+      { text: "⏳ ساعة", callback_data: "hz:H1" },
+    ],
+    [
+      { text: "🕔 ٤-٥ ساعات", callback_data: "hz:H4" },
       { text: "⚡ مضاربة يومية", callback_data: "hz:DAY" },
     ],
     [
@@ -87,19 +112,47 @@ const FOCUS_MENU = {
   ],
 };
 
+function alertsMenu(u: BotUser) {
+  const muted = u.muted_until && new Date(u.muted_until) > new Date();
+  return {
+    inline_keyboard: [
+      [
+        {
+          text: u.subscribed ? "🔕 إيقاف التنبيهات" : "🔔 تفعيل التنبيهات",
+          callback_data: "act:sub",
+        },
+      ],
+      [
+        { text: muted ? "🔇 مكتوم الآن — إلغاء الكتم" : "🔇 كتم ساعة", callback_data: muted ? "mute:off" : "mute:1h" },
+        { text: "🔇 كتم ٤ ساعات", callback_data: "mute:4h" },
+        { text: "🔇 كتم يوم", callback_data: "mute:24h" },
+      ],
+      [
+        { text: `${u.min_confidence <= 50 ? "✅ " : ""}ثقة 50%+`, callback_data: "conf:50" },
+        { text: `${u.min_confidence === 62 ? "✅ " : ""}ثقة 62%+`, callback_data: "conf:62" },
+        { text: `${u.min_confidence === 70 ? "✅ " : ""}ثقة 70%+`, callback_data: "conf:70" },
+        { text: `${u.min_confidence >= 80 ? "✅ " : ""}ثقة 80%+`, callback_data: "conf:80" },
+      ],
+      [{ text: "⬅️ القائمة", callback_data: "act:menu" }],
+    ],
+  };
+}
+
 function welcome(u: BotUser): string {
+  const muted = u.muted_until && new Date(u.muted_until) > new Date();
   return [
     "<b>IME — محرّك تحليل السوق</b>",
     "",
     "أهلاً بك 👋 اختر من القائمة:",
     "• <b>حلّل سهم</b>: أرسل رمز السهم وأعطيك القرار (دخول / مراقبة / تجنّب).",
     "• <b>تحليل السوق</b>: تحليل قائمة الأسهم المختارة لك.",
+    "• <b>صفقاتي</b>: الصفقات اللي انضميت لها ومتابعتها لحظياً.",
     "• <b>أخبار السوق</b>: آخر عناوين الأسواق.",
     "",
     `نوع التحليل الحالي: <b>${u.analysis_type === "FULL" ? "كامل" : "سريع"}</b>`,
     `مجال التحليل: <b>${FOCUS_LABELS[(u.focus as FocusKey) ?? "ALL"] ?? u.focus}</b>`,
     `مدة الصفقة: <b>${HORIZON_LABELS[(u.horizon as HorizonKey) ?? "DAY"] ?? u.horizon}</b>`,
-    `التنبيهات: <b>${u.subscribed ? "مفعّلة" : "متوقفة"}</b>`,
+    `التنبيهات: <b>${muted ? "مكتومة مؤقتاً 🔇" : u.subscribed ? "مفعّلة" : "متوقفة"}</b> (حد الثقة ${u.min_confidence}%)`,
   ].join("\n");
 }
 
@@ -127,6 +180,8 @@ async function getOrCreateUser(
     horizon: "DAY",
     subscribed: true,
     state: null,
+    muted_until: null,
+    min_confidence: 62,
   }) as unknown as BotUser;
 }
 
@@ -137,19 +192,27 @@ async function patchUser(chatId: string, patch: Record<string, unknown>) {
     .eq("chat_id", chatId);
 }
 
+interface AnalysisOutcome {
+  text: string;
+  action: string;
+  confidence: number;
+  idea: OptionIdea | null;
+  price: number | null;
+}
+
 export async function analyzeAndFormat(
   symbol: string,
   full: boolean,
   horizon = "DAY"
-): Promise<{ text: string; action: string; confidence: number }> {
+): Promise<AnalysisOutcome> {
   const { data, source } = await getStockData(symbol);
   const result = analyzeStock(data);
   const srcLabel =
     source === "menthorq" ? "MenthorQ (حي)" : source === "finnhub" ? "Finnhub (حي)" : source;
-  const priceLine = data.price !== undefined ? `السعر: <code>${data.price}</code>\n` : "";
+  const price = data.price ?? null;
+  const priceLine = price !== null ? `السعر: <code>${price}</code>\n` : "";
   const hzLine = `المدة: <b>${HORIZON_LABELS[(horizon as HorizonKey) ?? "DAY"] ?? horizon}</b>\n`;
-  const idea =
-    data.price !== undefined ? buildOptionIdea(result, data.price, horizon) : null;
+  const idea = price !== null ? buildOptionIdea(result, price, horizon) : null;
   const optionBlock = idea ? formatOptionIdea(idea, result.symbol) : "";
   const confidence = result.decision.confidence;
   const confLine = `درجة الثقة: <b>${confidence}%</b>\n`;
@@ -157,6 +220,8 @@ export async function analyzeAndFormat(
     text: `${priceLine}${hzLine}${confLine}${formatDecision(result, full)}${optionBlock}\n\n<i>المصدر: ${srcLabel} — سعر لحظي حقيقي</i>`,
     action: result.decision.action,
     confidence,
+    idea,
+    price,
   };
 }
 
@@ -197,6 +262,43 @@ async function sendMarketScan(chatId: string, user: BotUser) {
       i + chunkSize >= blocks.length ? MAIN_MENU : undefined
     );
   }
+}
+
+async function sendMyTrades(chatId: string) {
+  const { data } = await botSupabase()
+    .from("ime_bot_trades")
+    .select("*")
+    .eq("chat_id", chatId)
+    .eq("status", "JOINED")
+    .order("created_at", { ascending: false })
+    .limit(10);
+  const trades = (data ?? []) as unknown as BotTrade[];
+  if (!trades.length) {
+    await sendTelegramMessage(
+      chatId,
+      "ما عندك صفقات مفتوحة حالياً. لما توصلك فرصة دخول اضغط «✅ انضممت للصفقة» وأتابعها لك.",
+      MAIN_MENU
+    );
+    return;
+  }
+  const lines = trades.map((t) => {
+    const dir = t.action === "AGGRESSIVE_ENTRY" ? "🚀" : "✅";
+    const idea = t.option_idea;
+    const contract = idea ? `\nالعقد: <code>${t.symbol} ${idea.expiry} ${idea.strike} ${idea.type}</code>` : "";
+    const last = t.last_price !== null ? ` | آخر سعر <code>${t.last_price}</code>` : "";
+    return (
+      `${dir} <b>${t.symbol}</b> — ${HORIZON_LABELS[(t.horizon as HorizonKey) ?? "DAY"] ?? t.horizon}\n` +
+      `دخول <code>${t.entry}</code> | وقف <code>${t.stop}</code> | هدف <code>${t.target}</code>${last}${contract}`
+    );
+  });
+  await sendTelegramMessage(chatId, `📋 <b>صفقاتك المفتوحة</b>\n\n${lines.join("\n\n━━━━━━\n\n")}`, MAIN_MENU);
+}
+
+async function patchTrade(id: string, patch: Record<string, unknown>) {
+  await botSupabase()
+    .from("ime_bot_trades")
+    .update({ ...patch, updated_at: new Date().toISOString() })
+    .eq("id", id);
 }
 
 export async function handleTelegramUpdate(update: Record<string, any>): Promise<void> {
@@ -245,6 +347,60 @@ export async function handleTelegramUpdate(update: Record<string, any>): Promise
       );
       return;
     }
+    if (data.startsWith("mute:")) {
+      const opt = data.slice(5);
+      if (opt === "off") {
+        await patchUser(chatId, { muted_until: null });
+        await sendTelegramMessage(chatId, "🔔 تم إلغاء الكتم، التنبيهات شغالة.", MAIN_MENU);
+      } else {
+        const hours = opt === "1h" ? 1 : opt === "4h" ? 4 : 24;
+        const until = new Date(Date.now() + hours * 3_600_000).toISOString();
+        await patchUser(chatId, { muted_until: until });
+        await sendTelegramMessage(
+          chatId,
+          `🔇 تم كتم التنبيهات لمدة ${hours === 24 ? "يوم كامل" : hours === 4 ? "٤ ساعات" : "ساعة"}.`,
+          MAIN_MENU
+        );
+      }
+      return;
+    }
+    if (data.startsWith("conf:")) {
+      const c = Math.min(95, Math.max(40, parseInt(data.slice(5), 10) || 62));
+      await patchUser(chatId, { min_confidence: c });
+      await sendTelegramMessage(
+        chatId,
+        `تم ✅ ما أرسل لك تنبيه إلا إذا درجة الثقة <b>${c}%</b> أو أكثر.`,
+        MAIN_MENU
+      );
+      return;
+    }
+    if (data.startsWith("tj:") || data.startsWith("tl:")) {
+      const id = data.slice(3);
+      const joining = data.startsWith("tj:");
+      const { data: trade } = await botSupabase()
+        .from("ime_bot_trades")
+        .select("*")
+        .eq("id", id)
+        .eq("chat_id", chatId)
+        .maybeSingle();
+      if (!trade) {
+        await sendTelegramMessage(chatId, "هذه الفرصة انتهت أو غير متاحة.", MAIN_MENU);
+        return;
+      }
+      if (trade.status !== "SENT" && trade.status !== "JOINED" && trade.status !== "DECLINED") {
+        await sendTelegramMessage(chatId, "هذه الصفقة أُغلقت بالفعل.", MAIN_MENU);
+        return;
+      }
+      await patchTrade(id, { status: joining ? "JOINED" : "DECLINED" });
+      await sendTelegramMessage(
+        chatId,
+        joining
+          ? `✅ سجّلت انضمامك لصفقة <b>${trade.symbol}</b>.\nبتابعها لك وأرسل لك تحديث عند تحقق الهدف <code>${trade.target}</code> أو كسر الوقف <code>${trade.stop}</code>.\nتابعها من «📋 صفقاتي».`
+          : `تم، ما انضممت لصفقة <b>${trade.symbol}</b> — لن أتابعها لك.`,
+        MAIN_MENU
+      );
+      return;
+    }
     switch (data) {
       case "act:type":
         await sendTelegramMessage(chatId, "اختر نوع التحليل الذي تريده:", TYPE_MENU);
@@ -252,12 +408,22 @@ export async function handleTelegramUpdate(update: Record<string, any>): Promise
       case "act:horizon":
         await sendTelegramMessage(
           chatId,
-          "اختر مدة الصفقة:\n• <b>مضاربة يومية</b> — دخول وخروج سريع.\n• <b>أسبوعية</b> — أهداف أوسع وعقود لأسبوع.\n• <b>شهرية</b> — عقود أبعد وأهداف أكبر.",
+          "اختر مدة الصفقة:\n• <b>سكالب</b> — دقائق، أهداف صغيرة سريعة.\n• <b>ساعة</b> — صفقة جلسة قصيرة.\n• <b>٤-٥ ساعات</b> — لحد إغلاق الجلسة.\n• <b>يومية</b> — دخول وخروج في نفس اليوم.\n• <b>أسبوعية</b> — أهداف أوسع وعقود لأسبوع.\n• <b>شهرية</b> — عقود أبعد وأهداف أكبر.",
           HORIZON_MENU
         );
         return;
       case "act:focus":
         await sendTelegramMessage(chatId, "وش تحب أحلل لك؟", FOCUS_MENU);
+        return;
+      case "act:alerts":
+        await sendTelegramMessage(
+          chatId,
+          "🔔 <b>إعدادات التنبيهات</b>\nفعّل/أوقف التنبيهات، اكتمها مؤقتاً، أو ارفع حد الثقة عشان توصلك أقوى الفرص فقط:",
+          alertsMenu(user)
+        );
+        return;
+      case "act:trades":
+        await sendMyTrades(chatId);
         return;
       case "act:ask_symbol":
         await patchUser(chatId, { state: "AWAIT_SYMBOL" });
@@ -271,7 +437,7 @@ export async function handleTelegramUpdate(update: Record<string, any>): Promise
         return;
       case "act:sub": {
         const next = !user.subscribed;
-        await patchUser(chatId, { subscribed: next });
+        await patchUser(chatId, { subscribed: next, ...(next ? { muted_until: null } : {}) });
         await sendTelegramMessage(
           chatId,
           next ? "🔔 تم تفعيل التنبيهات التلقائية." : "🔕 تم إيقاف التنبيهات.",
@@ -305,10 +471,21 @@ export async function handleTelegramUpdate(update: Record<string, any>): Promise
     await sendMarketScan(chatId, user);
     return;
   }
+  if (text.startsWith("/trades")) {
+    await sendMyTrades(chatId);
+    return;
+  }
   if (text.startsWith("/help")) {
     await sendTelegramMessage(
       chatId,
-      ["الأوامر:", "/start القائمة", "/market تحليل السوق", "/news الأخبار", "أو أرسل رمز السهم مباشرة"].join("\n"),
+      [
+        "الأوامر:",
+        "/start القائمة",
+        "/market تحليل السوق",
+        "/news الأخبار",
+        "/trades صفقاتك المفتوحة",
+        "أو أرسل رمز السهم مباشرة",
+      ].join("\n"),
       MAIN_MENU
     );
     return;
@@ -340,20 +517,22 @@ export async function broadcastAlerts(): Promise<{ users: number; sent: number }
   const sb = botSupabase();
   const { data: users } = await sb
     .from("ime_bot_users")
-    .select("chat_id, analysis_type, focus, horizon, subscribed")
+    .select("chat_id, analysis_type, focus, horizon, subscribed, muted_until, min_confidence")
     .eq("subscribed", true);
   const rows = (users ?? []) as unknown as BotUser[];
 
-  const cache = new Map<string, { action: string; text: string; confidence: number }>();
-  const MIN_CONFIDENCE = 62;
+  const cache = new Map<string, AnalysisOutcome>();
   const today = new Date().toISOString().slice(0, 10);
+  const now = new Date();
   let sent = 0;
 
   for (const u of rows) {
+    // Respect temporary mute.
+    if (u.muted_until && new Date(u.muted_until) > now) continue;
+    const minConf = u.min_confidence ?? 62;
     const symbols = symbolsForFocus(u.focus).slice(0, 10);
     const full = u.analysis_type === "FULL";
     const horizon = u.horizon ?? "DAY";
-    const hits: Array<{ symbol: string; action: string; text: string }> = [];
 
     for (const s of symbols) {
       const key = `${s}:${full ? "F" : "Q"}:${horizon}`;
@@ -368,8 +547,8 @@ export async function broadcastAlerts(): Promise<{ users: number; sent: number }
         }
       }
       if (item.action !== "AGGRESSIVE_ENTRY" && item.action !== "CONSERVATIVE_ENTRY") continue;
-      // Only push high-conviction ideas automatically.
-      if (item.confidence < MIN_CONFIDENCE) continue;
+      // Only push high-conviction ideas automatically (per-user threshold).
+      if (item.confidence < minConf) continue;
 
       // Don't repeat the same idea to the same user on the same day.
       const { error } = await sb.from("ime_bot_alerts").insert({
@@ -380,19 +559,112 @@ export async function broadcastAlerts(): Promise<{ users: number; sent: number }
         day: today,
       });
       if (error) continue;
-      hits.push({ symbol: s, action: item.action, text: item.text });
-    }
 
-    if (!hits.length) continue;
-    for (let i = 0; i < hits.length; i += 3) {
-      const chunk = hits.slice(i, i + 3).map((h) => h.text).join("\n\n━━━━━━\n\n");
+      // Record a trackable trade so the user can join with one tap.
+      const { data: trade } = await sb
+        .from("ime_bot_trades")
+        .insert({
+          chat_id: u.chat_id,
+          symbol: s,
+          action: item.action,
+          horizon,
+          option_idea: item.idea,
+          entry: item.idea?.underlyingEntry ?? item.price,
+          stop: item.idea?.underlyingStop ?? null,
+          target: item.idea?.underlyingTarget ?? null,
+          last_price: item.price,
+          status: "SENT",
+        })
+        .select("id")
+        .single();
+      const tradeId = (trade as { id?: string } | null)?.id;
+      const keyboard = tradeId
+        ? {
+            inline_keyboard: [
+              [
+                { text: "✅ انضممت للصفقة", callback_data: `tj:${tradeId}` },
+                { text: "❌ ما انضممت", callback_data: `tl:${tradeId}` },
+              ],
+            ],
+          }
+        : undefined;
+
       const res = await sendTelegramMessage(
         u.chat_id,
-        `🚨 <b>فرص دخول جديدة — ${HORIZON_LABELS[(horizon as HorizonKey) ?? "DAY"] ?? horizon}</b>\n\n${chunk}`,
-        i + 3 >= hits.length ? MAIN_MENU : undefined
+        `🚨 <b>فرصة دخول — ${HORIZON_LABELS[(horizon as HorizonKey) ?? "DAY"] ?? horizon}</b>\n\n${item.text}\n\n<i>انضميت؟ اضغط الزر عشان أتابع الصفقة معك.</i>`,
+        keyboard
       );
       if (res.ok) sent++;
     }
   }
   return { users: rows.length, sent };
+}
+
+/**
+ * Follow up on trades users joined: notify when the target or stop is hit,
+ * and expire trades that outlived their horizon window.
+ */
+export async function updateOpenTrades(): Promise<{ checked: number; closed: number }> {
+  const sb = botSupabase();
+  const { data } = await sb.from("ime_bot_trades").select("*").eq("status", "JOINED");
+  const trades = (data ?? []) as unknown as BotTrade[];
+  let closed = 0;
+
+  for (const t of trades) {
+    const h = horizonOf(t.horizon);
+    // Expire trades older than the horizon window (min 1 day).
+    const ageMs = Date.now() - new Date(t.created_at).getTime();
+    const maxAgeMs = Math.max(1, h.maxDays) * 86_400_000;
+    if (ageMs > maxAgeMs) {
+      await patchTrade(t.id, { status: "EXPIRED" });
+      closed++;
+      await sendTelegramMessage(
+        t.chat_id,
+        `⌛️ انتهت مدة صفقة <b>${t.symbol}</b> (${HORIZON_LABELS[h.key]}) بدون تحقق الهدف أو الوقف — أُغلقت المتابعة.`
+      );
+      continue;
+    }
+    if (t.stop === null || t.target === null) continue;
+    try {
+      const { data: quote } = await getStockData(t.symbol);
+      const price = quote.price;
+      if (price === undefined) continue;
+      const isCall = t.option_idea ? t.option_idea.type === "CALL" : true;
+      const hitTarget = isCall ? price >= t.target : price <= t.target;
+      const hitStop = isCall ? price <= t.stop : price >= t.stop;
+
+      if (hitTarget) {
+        await patchTrade(t.id, { status: "CLOSED_TARGET", last_price: price });
+        closed++;
+        const idea = t.option_idea;
+        await sendTelegramMessage(
+          t.chat_id,
+          `🎯 <b>تحقق الهدف — ${t.symbol}</b>\nالسعر وصل <code>${price}</code> (الهدف <code>${t.target}</code>).` +
+            (idea
+              ? `\nالعقد <code>${t.symbol} ${idea.expiry} ${idea.strike} ${idea.type}</code> — سعره التقريبي عند الهدف <code>${idea.premiumTarget}</code> (دخلت بـ <code>${idea.premium}</code>).`
+              : "") +
+            `\n\n<i>فكّر بجني الربح — هذا تنبيه متابعة وليس توصية.</i>`,
+          MAIN_MENU
+        );
+      } else if (hitStop) {
+        await patchTrade(t.id, { status: "CLOSED_STOP", last_price: price });
+        closed++;
+        const idea = t.option_idea;
+        await sendTelegramMessage(
+          t.chat_id,
+          `🛑 <b>ضرب الوقف — ${t.symbol}</b>\nالسعر وصل <code>${price}</code> (الوقف <code>${t.stop}</code>).` +
+            (idea
+              ? `\nوقف العقد التقريبي <code>${idea.premiumStop}</code>.`
+              : "") +
+            `\n\n<i>الانضباط أهم من الصفقة — أُغلقت المتابعة.</i>`,
+          MAIN_MENU
+        );
+      } else {
+        await patchTrade(t.id, { last_price: price });
+      }
+    } catch (e) {
+      console.error(`trade update ${t.symbol} failed:`, e);
+    }
+  }
+  return { checked: trades.length, closed };
 }
