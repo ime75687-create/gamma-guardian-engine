@@ -1,0 +1,13 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1789878550256,
+      "tag": "0000_bot_trade_tracking_and_alert_prefs",
+      "breakpoints": true
+    }
+  ]
+}
