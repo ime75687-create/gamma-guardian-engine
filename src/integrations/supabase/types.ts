@@ -44,6 +44,54 @@ export type Database = {
         }
         Relationships: []
       }
+      ime_bot_trades: {
+        Row: {
+          action: string
+          chat_id: string
+          created_at: string
+          entry: number | null
+          horizon: string
+          id: string
+          last_price: number | null
+          option_idea: Json | null
+          status: string
+          stop: number | null
+          symbol: string
+          target: number | null
+          updated_at: string
+        }
+        Insert: {
+          action: string
+          chat_id: string
+          created_at?: string
+          entry?: number | null
+          horizon?: string
+          id?: string
+          last_price?: number | null
+          option_idea?: Json | null
+          status?: string
+          stop?: number | null
+          symbol: string
+          target?: number | null
+          updated_at?: string
+        }
+        Update: {
+          action?: string
+          chat_id?: string
+          created_at?: string
+          entry?: number | null
+          horizon?: string
+          id?: string
+          last_price?: number | null
+          option_idea?: Json | null
+          status?: string
+          stop?: number | null
+          symbol?: string
+          target?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       ime_bot_users: {
         Row: {
           analysis_type: string
@@ -52,6 +100,8 @@ export type Database = {
           first_name: string | null
           focus: string
           horizon: string
+          min_confidence: number
+          muted_until: string | null
           state: string | null
           subscribed: boolean
           symbols: string[]
@@ -65,6 +115,8 @@ export type Database = {
           first_name?: string | null
           focus?: string
           horizon?: string
+          min_confidence?: number
+          muted_until?: string | null
           state?: string | null
           subscribed?: boolean
           symbols?: string[]
@@ -78,6 +130,8 @@ export type Database = {
           first_name?: string | null
           focus?: string
           horizon?: string
+          min_confidence?: number
+          muted_until?: string | null
           state?: string | null
           subscribed?: boolean
           symbols?: string[]
