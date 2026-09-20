@@ -1,9 +1,11 @@
-// Trading horizon: scalp (minutes/hours), day trade, weekly swing, monthly position.
+// Trading horizon: scalp (minutes), 1 hour, ~5 hours, day trade, weekly swing, monthly position.
 
-export type HorizonKey = "SCALP" | "DAY" | "WEEK" | "MONTH";
+export type HorizonKey = "SCALP" | "H1" | "H4" | "DAY" | "WEEK" | "MONTH";
 
 export const HORIZON_LABELS: Record<HorizonKey, string> = {
-  SCALP: "سكالب (دقائق/ساعات)",
+  SCALP: "سكالب (دقائق)",
+  H1: "ساعة واحدة",
+  H4: "٤-٥ ساعات",
   DAY: "مضاربة يومية",
   WEEK: "صفقات أسبوعية",
   MONTH: "صفقات شهرية",
@@ -35,8 +37,28 @@ export const HORIZONS: Record<HorizonKey, HorizonConfig> = {
     strikeOtmPct: 0.005,
     days: 0,
     maxDays: 2,
-    maxPremium: 0.8,
+    maxPremium: 0.5,
     maxOtmPct: 0.012,
+  },
+  H1: {
+    key: "H1",
+    stopPct: 0.004,
+    targetPct: 0.008,
+    strikeOtmPct: 0.006,
+    days: 0,
+    maxDays: 2,
+    maxPremium: 0.7,
+    maxOtmPct: 0.014,
+  },
+  H4: {
+    key: "H4",
+    stopPct: 0.005,
+    targetPct: 0.01,
+    strikeOtmPct: 0.008,
+    days: 0,
+    maxDays: 3,
+    maxPremium: 0.9,
+    maxOtmPct: 0.016,
   },
   DAY: {
     key: "DAY",
@@ -45,7 +67,7 @@ export const HORIZONS: Record<HorizonKey, HorizonConfig> = {
     strikeOtmPct: 0.01,
     days: 1,
     maxDays: 5,
-    maxPremium: 1.5,
+    maxPremium: 1.1,
     maxOtmPct: 0.02,
   },
   WEEK: {
@@ -55,7 +77,7 @@ export const HORIZONS: Record<HorizonKey, HorizonConfig> = {
     strikeOtmPct: 0.025,
     days: 4,
     maxDays: 9,
-    maxPremium: 3,
+    maxPremium: 2,
     maxOtmPct: 0.04,
   },
   MONTH: {
@@ -65,7 +87,7 @@ export const HORIZONS: Record<HorizonKey, HorizonConfig> = {
     strikeOtmPct: 0.05,
     days: 21,
     maxDays: 35,
-    maxPremium: 6,
+    maxPremium: 4,
     maxOtmPct: 0.08,
   },
 };
