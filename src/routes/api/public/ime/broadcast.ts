@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { broadcastAlerts, botSupabase } from "@/lib/ime/bot.server";
+import { broadcastAlerts, botSupabase, updateOpenTrades } from "@/lib/ime/bot.server";
 
 async function authorized(request: Request): Promise<boolean> {
   const url = new URL(request.url);
@@ -24,8 +24,9 @@ export const Route = createFileRoute("/api/public/ime/broadcast")({
     handlers: {
       POST: async ({ request }) => {
         if (!(await authorized(request))) return new Response("Unauthorized", { status: 401 });
+        const trades = await updateOpenTrades();
         const result = await broadcastAlerts();
-        return Response.json({ ok: true, ...result });
+        return Response.json({ ok: true, ...result, trades });
       },
     },
   },

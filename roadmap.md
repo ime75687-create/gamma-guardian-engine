@@ -33,3 +33,8 @@ Open items (waiting on user):
 - [x] Cheap-contract search: walks strike OTM toward a premium budget (0.8 / 1.5 / 3 / 6 per share), capped by maxOtmPct so strikes stay realistic
 
 - [x] Chart risk review page (/chart-review): upload chart screenshot + market context, AI summarizes scalp & day-trade risks
+
+## Bot upgrade: granular horizons, trade tracking, alert prefs (done)
+- [x] New horizons H1 (1 hour) and H4 (4-5 hours) + cheaper contracts (lower premium budgets: SCALP 0.5, H1 0.7, H4 0.9, DAY 1.1, WEEK 2, MONTH 4)
+- [x] Alerts settings menu: temporary mute (1h/4h/24h/off via muted_until) + per-user min_confidence threshold (50/62/70/80)
+- [x] Trade tracking: ime_bot_trades table; every broadcast alert has "انضممت / ما انضممت" buttons; joined trades tracked each cron run via updateOpenTrades() with target/stop/expiry notifications; "📋 صفقاتي" menu + /trades command
