@@ -1,0 +1,33 @@
+# IME server-side configuration template
+# Copy this file to .env.local for local development, or add the same
+# variables under Lovable Cloud Project Settings -> Secrets.
+# Never commit real values and never expose them through VITE_ variables.
+
+# Lovable AI access used for Arabic translation and news explanations.
+LOVABLE_API_KEY=
+
+# Telegram connection key configured through the Lovable Telegram integration.
+TELEGRAM_API_KEY=
+
+# Supabase project URL. Lovable Cloud may provide this automatically.
+SUPABASE_URL=https://YOUR_PROJECT_REF.supabase.co
+
+# Supabase service-role key. Keep server-side only.
+# The code also accepts SUPABASE_SERVICE_ROLE_KEY as an alternative name.
+IME_SUPABASE_SERVER_KEY=
+
+# Long random value used to protect /api/public/ime/broadcast.
+LOVABLE_CRON_SECRET=
+
+# Worker settings. Use your deployed app URL outside local development.
+IME_BROADCAST_URL=http://127.0.0.1:8080/api/public/ime/broadcast
+IME_WORKER_INTERVAL_MS=5000
+
+# Optional licensed market-maker GEX provider.
+# MENTHORQ_API_KEY=
+
+# Optional API protection for /api/ime.
+# IME_API_KEY=
+
+# Optional default maximum full contract cost, premium multiplied by 100.
+IME_MAX_CONTRACT_COST_USD=200
